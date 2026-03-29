@@ -10,7 +10,11 @@ router = APIRouter(prefix="/api/users", tags=["Users"])
 
 @router.get("/", response_model=List[UserOut])
 def get_users(db: Session = Depends(get_db), current_user=Depends(require_role("admin"))):
-    return db.query(User).filter(User.company_id == current_user.company_id).all()
+    return (
+        db.query(User)
+        .filter(User.company_id == current_user.company_id, User.is_active == True)  # noqa: E712
+        .all()
+    )
 
 @router.post("/", response_model=UserOut)
 def create_user(data: UserCreate, db: Session = Depends(get_db), current_user=Depends(require_role("admin"))):
@@ -47,7 +51,15 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user=Depend
     user = db.query(User).filter(User.id == user_id, User.company_id == current_user.company_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    db.delete(user)
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    # Soft-delete to avoid FK constraint issues (expenses, approvals, rule lines, manager links).
+    db.query(User).filter(User.manager_id == user.id).update({User.manager_id: None}, synchronize_session=False)
+
+    user.is_active = False
+    # Free up the email unique constraint so the same email can be reused later.
+    user.email = f"{user.email}__deleted__{user.id}"
     db.commit()
     return {"message": "User deleted"}
 
@@ -55,6 +67,7 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user=Depend
 def get_managers(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     managers = db.query(User).filter(
         User.company_id == current_user.company_id,
-        User.role.in_(["manager", "admin"])
+        User.role.in_(["manager", "admin"]),
+        User.is_active == True,  # noqa: E712
     ).all()
     return [{"id": m.id, "name": m.name, "email": m.email} for m in managers]

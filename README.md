@@ -76,8 +76,8 @@ pip install pydantic-settings
 python run.py
 ```
 
-Backend will start at: http://localhost:8000
-API Docs available at: http://localhost:8000/docs
+Backend will start at: http://localhost:8001
+API Docs available at: http://localhost:8001/docs
 
 ### Step 4 — Frontend Setup
 
@@ -86,6 +86,11 @@ cd frontend
 
 # Install dependencies
 npm install
+
+# (Optional) configure API base URL
+# By default, the Vite dev server proxies `/api` to the backend at http://localhost:8001,
+# which avoids CORS during development.
+# cp .env.example .env
 
 # Run the frontend
 npm run dev

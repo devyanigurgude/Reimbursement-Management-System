@@ -64,7 +64,7 @@ export default function AdminDashboard() {
   const handleDeleteUser = async (id) => {
     if (!confirm('Delete this user?')) return
     try { await deleteUser(id); toast.success('User deleted'); load() }
-    catch { toast.error('Failed') }
+    catch (err) { toast.error(err.response?.data?.detail || 'Failed') }
   }
 
   const addApproverLine = () => {
